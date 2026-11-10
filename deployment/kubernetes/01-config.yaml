@@ -1,0 +1,63 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: shopping-config
+  namespace: online-shopping
+data:
+
+  init.sql: |
+    CREATE DATABASE auth_db;
+    CREATE DATABASE product_db;
+
+  gateway.conf: |
+    server {
+        listen 8080;
+
+        location /api/auth/ {
+            proxy_pass http://auth-service:5000;
+            proxy_set_header Host $host;
+        }
+
+        location = /api/products {
+            proxy_pass http://product-service:5000;
+            proxy_set_header Host $host;
+        }
+
+        location /api/products/ {
+            proxy_pass http://product-service:5000;
+            proxy_set_header Host $host;
+        }
+
+        location / {
+            return 404;
+        }
+    }
+
+  frontend.conf: |
+    server {
+        listen 80;
+
+        root /usr/share/nginx/html;
+        index index.html;
+
+        location /api/ {
+            proxy_pass http://gateway:8080;
+            proxy_set_header Host $host;
+        }
+
+        location / {
+            try_files $uri $uri/ /index.html;
+        }
+    }
+
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: shopping-secrets
+  namespace: online-shopping
+type: Opaque
+stringData:
+  POSTGRES_USER: shopping
+  POSTGRES_PASSWORD: local-dev-password
+  JWT_SECRET: local-development-jwt-secret-change-this
